@@ -40,6 +40,6 @@
 
 9. Once the CloudFormation template finishes creation, go to the outputs tab and select the output "ConsoleLoginUrl."  You will be able to go here and login using your newly created credentials.
 ![image](https://github.com/user-attachments/assets/68dffb63-8ccd-4f7d-b9a2-bdda9b36843c)
+<br/>
 
-
-Last - don't forget to delete the template once you are 100% done. 
+#### Last - don't forget to delete the template once you are 100% done. 
