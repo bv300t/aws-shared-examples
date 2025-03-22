@@ -40,6 +40,8 @@ Resources:
       LoginProfile:
         Password: !Ref UserPassword
 #        PasswordResetRequired: true
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
       Tags:
         - Key: Name
           Value: !Ref Username
