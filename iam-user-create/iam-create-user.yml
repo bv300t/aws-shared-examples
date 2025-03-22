@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFormation template to create an IAM user with programmatic and console access
+  Last Updated: 03/22/25
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: User Configuration
+        Parameters:
+          - Username
+          - UserPassword
+    ParameterLabels:
+      Username:
+        default: IAM Username
+      UserPassword:
+        default: User Console Password
+
+Parameters:
+  Username:
+    Type: String
+    Description: The username for the IAM user
+    MinLength: 1
+    AllowedPattern: "[a-zA-Z0-9]+"
+    ConstraintDescription: Username must contain only alphanumeric characters.
+
+  UserPassword:
+    Type: String
+    Description: The password for the IAM user's console access
+    MinLength: 12
+    NoEcho: true
+    ConstraintDescription: Password must be at least 12 characters.
+    
+Resources:
+  User:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref Username
+      LoginProfile:
+        Password: !Ref UserPassword
+#        PasswordResetRequired: true
+      Tags:
+        - Key: Name
+          Value: !Ref Username
+      
+  UserAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref User
+      
+  UserCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub /iam/${Username}
+      Description: !Sub Programmatic access credentials for IAM user ${Username}
+      SecretString: !Join 
+        - ''
+        - - '","access_key_id":"'
+          - !Ref UserAccessKey
+          - '","secret_access_key":"'
+          - !GetAtt UserAccessKey.SecretAccessKey
+          - '"}'
+      Tags:
+        - Key: Name
+          Value: !Sub /iam/${Username}
+
+Outputs:
+  UserArn:
+    Description: The ARN of the created IAM user
+    Value: !GetAtt User.Arn
+    
+  AccessKeyId:
+    Description: The Access Key ID of the created IAM user
+    Value: !Ref UserAccessKey
+    
+  CredentialsSecretArn:
+    Description: The ARN of the Secrets Manager secret containing the user credentials
+    Value: !Ref UserCredentialsSecret
