@@ -40,8 +40,6 @@ Resources:
       LoginProfile:
         Password: !Ref UserPassword
 #        PasswordResetRequired: true
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AdministratorAccess
       Tags:
         - Key: Name
           Value: !Ref Username
@@ -67,6 +65,16 @@ Resources:
         - Key: Name
           Value: !Sub /iam/${Username}
 
+  LoginUrlParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/iam/console-login-url"
+      Type: String
+      Value: !Sub "https://${AWS::AccountId}.signin.aws.amazon.com/console"
+      Description: "URL for AWS Management Console login"
+      Tags:
+        Name: "/iam/console-login-url"
+
 Outputs:
   UserArn:
     Description: The ARN of the created IAM user
@@ -79,3 +87,7 @@ Outputs:
   CredentialsSecretArn:
     Description: The ARN of the Secrets Manager secret containing the user credentials
     Value: !Ref UserCredentialsSecret
+
+  ConsoleLoginUrl:
+    Description: The URL for logging into the AWS Management Console
+    Value: !Sub "https://${AWS::AccountId}.signin.aws.amazon.com/console"
