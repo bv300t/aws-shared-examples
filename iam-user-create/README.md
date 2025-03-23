@@ -1,8 +1,8 @@
 # IAM User Creation Example
 
-#### This the following instructions will create an IAM user with programmatic and console access via CloudFormation.  It will store the programmatic credentials in SSM Parameter store utilizing secure string.  
+#### This the following instructions will create an IAM user with programmatic and console access via CloudFormation.  It will store the programmatic credentials in Secrets Manager.  
 
-#### Note, this template uses secrets manager to save programmatic credentials.  There is a small monthly usage charge for Secrets Manager.  You can use these credentials by retrieving the values from secrets manager.
+#### Note: There is a small monthly usage charge for Secrets Manager.  You can use these credentials by retrieving the values from secrets manager. 
 <br/>
 
 1. Login to AWS (This guide assumes you know how to login to your account)
