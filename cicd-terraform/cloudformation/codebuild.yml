@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CodeBuild Prep to run Terraform from CodeBuild. Needs update, work in progress.
+  Last Update: 04/04/25
+Parameters:
+  DataPartName:
+    Description: the data part name as appear in the cloudformation stack name
+    Type: String
+    Default: mydataname
+Resources:
+  S3StateAndSoftware:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join
+        - "-"
+        - - !Ref AWS::AccountId
+          - !Ref DataPartName
+          - terraform-state
+  Adminrole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join
+        - "-"
+        - - !Ref AWS::StackName
+          - !Ref AWS::AccountId
+          - codebuild
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: adminaccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action: '*'
+                Effect: Allow
+                Resource: '*'
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Join
+        - "-"
+        - - !Ref AWS::StackName
+          - !Ref AWS::AccountId
+          - build_Application
+      Description: build the application part for cades using terraform
+      ServiceRole: !Ref Adminrole
+      Artifacts:
+        Type: no_artifacts
+      Environment:        
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        # PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: datapart
+            Value: !Ref DataPartName
+          - Name: region
+            Value: !Ref AWS::AccountId
+          - Name: applicationname
+            Value: !Ref AWS::StackName
+          - Name: destroy
+            Value: 'False'
+      Source:
+        Location: https://github.com/bv300t/aws-shared-examples/tree/f51a85bbca805561ec1c400f416e0a1e62570f52/cicd-terraform
+        Type: GITHUB
+      TimeoutInMinutes: 10
+      Tags:
+        - Key: Project
+          Value: Run Terraform From CodeBuild
