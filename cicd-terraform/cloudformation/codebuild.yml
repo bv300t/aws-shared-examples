@@ -27,7 +27,7 @@ Parameters:
   FullRepositoryId:
     Type: String
     Description: The full name of the GitHub repository
-    AllowedPattern: "^aws-/.*"
+    AllowedPattern: "^aws-.*"
     Default: aws-shared-examples/cicd-terraform
   BranchName:
     Type: String
