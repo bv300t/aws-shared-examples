@@ -21,7 +21,7 @@ Parameters:
   PipelineName:
     Type: String
     Description: The name of the pipeline. Generally follows GH repo name
-    AllowedPattern: "^aws_.*"
+    AllowedPattern: "^aws-.*"
     Default: aws-shared-examples/cicd-terraform
   BranchName:
     Type: String
@@ -254,7 +254,7 @@ Resources:
         # PrivilegedMode: true
         EnvironmentVariables:
           - Name: account
-            Value: !Ref AWS:AccountId
+            Value: !Ref AWS::AccountId
           - Name: datapart
             Value: !Ref DataPartName
           - Name: region
