@@ -22,7 +22,7 @@ Parameters:
   PipelineName:
     Type: String
     Description: The name of the pipeline. Generally follows GH repo name
-    AllowedPattern: "^_.*"
+    AllowedPattern: "^cicd-.*"
     Default: cicd-terraform
   FullRepositoryId:
     Type: String
