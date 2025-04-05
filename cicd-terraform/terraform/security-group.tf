@@ -17,3 +17,9 @@ resource "aws_security_group" "crypto" {
      cidr_blocks = ["0.0.0.0/0"]
     }
 }
+
+resource "aws_ssm_parameter" "ssmcodebuildsgid" {
+  name  = "/codebuild/codebuildsgid"
+  type  = "String"
+  value = aws_security_group.my_sg.id
+}
