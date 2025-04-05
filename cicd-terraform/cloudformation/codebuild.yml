@@ -21,7 +21,7 @@ Parameters:
   PipelineName:
     Type: String
     Description: The name of the pipeline. Generally follows GH repo name
-    AllowedPattern: "^application_.*"
+    AllowedPattern: "^aws_.*"
     Default: aws-shared-examples/cicd-terraform
   BranchName:
     Type: String
