@@ -236,12 +236,17 @@ Resources:
           Value: !Ref PipelineName
   BuildProject:
     Type: AWS::CodeBuild::Project
+    DependsOn:
+      - CodeBuildServiceRole
+      - CodeBuildBasePolicy
+      - CodeBuildCloudWatchPolicy
+      - CodeBuildVpcPolicy    
     Properties:
       Name: !Ref PipelineName
       Description: Build for performing a deployment using terraform
-      ServiceRole: !Ref Adminrole
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Artifacts:
-        Type: no_artifacts
+        Type: CODEPIPELINE
       Environment:        
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
@@ -259,14 +264,19 @@ Resources:
           - Name: destroy
             Value: 'False'
       Source:
-        Location: https://github.com/bv300t/aws-shared-examples/tree/f51a85bbca805561ec1c400f416e0a1e62570f52/cicd-terraform
-        Type: GITHUB
+        Type: CODEPIPELINE
+        BuildSpec: !Ref BuildSpecPath
+      VpcConfig:
+        VpcId: !Sub '{{resolve:ssm:VpcId}}'
+        Subnets:
+          - !Sub '{{resolve:ssm:SubnetA}}' 
+          - !Sub '{{resolve:ssm:SubnetB}}'
+        SecurityGroupIds: 
+          - '{{resolve:ssm:CodeBuildSg}}'
       TimeoutInMinutes: 10
       Tags:
         - Key: Name
-          Value: !Ref PipelineName      
-        - Key: Project
-          Value: Run Terraform From CodeBuild
+          Value: !Ref PipelineName
   CodeBuildServiceRole:    
     Type: "AWS::IAM::Role"
     Properties:
