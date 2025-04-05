@@ -1,14 +1,44 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   CodeBuild Prep to run Terraform from CodeBuild. Needs update, work in progress.
-  Last Update: 04/04/25
+  Last Update: 04/05/25
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Pipeline Configuration Details"
+        Parameters:
+          - PipelineName
+          - BranchName
+          - BuildSpecPath
+          
 Parameters:
   DataPartName:
-    Description: the data part name as appear in the cloudformation stack name
+    Description: the app name as it appears in the cloudformation stack name
     Type: String
-    Default: mydataname
+    Default: appname
+  PipelineName:
+    Type: String
+    Description: The name of the pipeline. Generally follows GH repo name
+    AllowedPattern: "^application_.*"
+    Default: aws-shared-examples/cicd-terraform
+  BranchName:
+    Type: String
+    Description: The GitHub branch utilized by the build
+    AllowedValues:
+      - dev
+      - qa
+      - main
+    Default: main
+  BuildSpecPath:
+    Type: String
+    Description: The path of the buildspec file for the build in the GH repo
+    AllowedPattern: "^.*buildspec.yml$"
+    Default: buildspec.yml
+
 Resources:
-  S3StateAndSoftware:
+  S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Join
@@ -16,51 +46,209 @@ Resources:
         - - !Ref AWS::AccountId
           - !Ref DataPartName
           - terraform-state
-  Adminrole:
-    Type: AWS::IAM::Role
+  CodePipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    DependsOn:
+      - CodePipelineRole
+      - CodeBuildProject
     Properties:
-      RoleName: !Join
-        - "-"
-        - - !Ref AWS::StackName
-          - !Ref AWS::AccountId
-          - codebuild
+      Name: !Ref PipelineName
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: 1
+              Configuration:
+                ConnectionArn: !Sub '{{resolve:ssm:CodeStarConnection}}'
+                FullRepositoryId: !Ref FullRepositoryId
+                BranchName: !Ref BranchName
+                OutputArtifactFormat: CODE_ZIP
+              OutputArtifacts:
+                - Name: SourceOutput
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                ProjectName: !Ref PipelineName
+      ArtifactStore:
+        Type: S3
+        Location: !Sub build-artifacts-${AWS::AccountId}
+      Tags:
+        - Key: Name
+          Value: !Ref PipelineName
+  CodePipelinePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: CodePipelineRole
+    Properties:
+      PolicyName: !Sub "CodePipelinePolicy-${PipelineName}"
+      PolicyDocument:
+        Statement:
+          - Action:
+              - iam:PassRole
+            Resource: "*"
+            Effect: Allow
+            Condition:
+              StringEqualsIfExists:
+                iam:PassedToService:
+                  - cloudformation.amazonaws.com
+                  - elasticbeanstalk.amazonaws.com
+                  - ec2.amazonaws.com
+                  - ecs-tasks.amazonaws.com
+          - Action:
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetRepository
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codedeploy:CreateDeployment
+              - codedeploy:GetApplication
+              - codedeploy:GetApplicationRevision
+              - codedeploy:GetDeployment
+              - codedeploy:GetDeploymentConfig
+              - codedeploy:RegisterApplicationRevision
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codestar-connections:UseConnection
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - elasticbeanstalk:*
+              - ec2:*
+              - elasticloadbalancing:*
+              - autoscaling:*
+              - cloudwatch:*
+              - s3:*
+              - sns:*
+              - cloudformation:*
+              - rds:*
+              - sqs:*
+              - ecs:*
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - lambda:InvokeFunction
+              - lambda:ListFunctions
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - opsworks:CreateDeployment
+              - opsworks:DescribeApps
+              - opsworks:DescribeCommands
+              - opsworks:DescribeDeployments
+              - opsworks:DescribeInstances
+              - opsworks:DescribeStacks
+              - opsworks:UpdateApp
+              - opsworks:UpdateStack
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - cloudformation:CreateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeStacks
+              - cloudformation:UpdateStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:SetStackPolicy
+              - cloudformation:ValidateTemplate
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:BatchGetBuildBatches
+              - codebuild:StartBuildBatch
+            Resource: "*"
+            Effect: Allow
+          - Effect: Allow
+            Action:
+              - devicefarm:ListProjects
+              - devicefarm:ListDevicePools
+              - devicefarm:GetRun
+              - devicefarm:GetUpload
+              - devicefarm:CreateUpload
+              - devicefarm:ScheduleRun
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - servicecatalog:ListProvisioningArtifacts
+              - servicecatalog:CreateProvisioningArtifact
+              - servicecatalog:DescribeProvisioningArtifact
+              - servicecatalog:DeleteProvisioningArtifact
+              - servicecatalog:UpdateProduct
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cloudformation:ValidateTemplate
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ecr:DescribeImages
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - states:DescribeExecution
+              - states:DescribeStateMachine
+              - states:StartExecution
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - appconfig:StartDeployment
+              - appconfig:StopDeployment
+              - appconfig:GetDeployment
+            Resource: "*"
+      Roles:
+        - !Ref CodePipelineRole
+  CodePipelineRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "AWSCodePipelineServiceRole-${AWS::Region}-${PipelineName}"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Service:
-                - codebuild.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Policies:
-        - PolicyName: adminaccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Action: '*'
-                Effect: Allow
-                Resource: '*'
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess"
+      Tags:
+        - Key: Name
+          Value: !Ref PipelineName
   BuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: !Join
-        - "-"
-        - - !Ref AWS::StackName
-          - !Ref AWS::AccountId
-          - build_Application
-      Description: build the application part for cades using terraform
+      Name: !Ref PipelineName
+      Description: Build for performing a deployment using terraform
       ServiceRole: !Ref Adminrole
       Artifacts:
         Type: no_artifacts
       Environment:        
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        Image: aws/codebuild/amazonlinux-x86_64-standard:5.0
         # PrivilegedMode: true
         EnvironmentVariables:
-          - Name: accoutn
+          - Name: account
             Value: !Ref AWS:AccountId
           - Name: datapart
             Value: !Ref DataPartName
@@ -75,5 +263,110 @@ Resources:
         Type: GITHUB
       TimeoutInMinutes: 10
       Tags:
+        - Key: Name
+          Value: !Ref PipelineName      
         - Key: Project
           Value: Run Terraform From CodeBuild
+  CodeBuildServiceRole:    
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${PipelineName}-ServiceRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+  CodeBuildBasePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: CodeBuildServiceRole
+    Properties:
+      PolicyName: !Sub "CodeBuildBasePolicy-${PipelineName}"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${PipelineName}"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${PipelineName}:*"
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+          - Effect: Allow
+            Resource:
+              - arn:aws:s3:::codepipeline-us-east-1-*
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+          - Effect: Allow
+            Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/${PipelineName}-*"
+      Roles:
+        - !Ref CodeBuildServiceRole
+  CodeBuildCloudWatchPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: CodeBuildServiceRole
+    Properties:
+      PolicyName: !Sub "CodeBuildCloudWatchPolicy-${PipelineName}"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/codebuild/${PipelineName}"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/codebuild/${PipelineName}:*"
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+      Roles:
+        - !Ref CodeBuildServiceRole
+  CodeBuildVpcPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: CodeBuildServiceRole
+    Properties:
+      PolicyName: !Sub "CodeBuildVpcPolicy-${PipelineName}"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeDhcpOptions
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeVpcs
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterfacePermission
+            Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
+            Condition:
+              StringEquals:
+                ec2:Subnet:
+                  - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/{{resolve:ssm:SubnetA}}'
+                  - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/{{resolve:ssm:SubnetB}}'
+                ec2:AuthorizedService: codebuild.amazonaws.com
+      Roles:
+        - !Ref CodeBuildServiceRole
+          
+  CloudWatchLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/codebuild/${PipelineName}"
+      RetentionInDays: 30
