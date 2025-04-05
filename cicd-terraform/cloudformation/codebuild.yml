@@ -10,6 +10,7 @@ Metadata:
           default: "Pipeline Configuration Details"
         Parameters:
           - PipelineName
+          - FullRepositoryId
           - BranchName
           - BuildSpecPath
           
@@ -22,6 +23,11 @@ Parameters:
     Type: String
     Description: The name of the pipeline. Generally follows GH repo name
     AllowedPattern: "^aws-.*"
+    Default: aws-shared-examples/cicd-terraform
+  FullRepositoryId:
+    Type: String
+    Description: The full name of the GitHub repository
+    AllowedPattern: "^aws-/.*"
     Default: aws-shared-examples/cicd-terraform
   BranchName:
     Type: String
@@ -234,7 +240,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref PipelineName
-  BuildProject:
+  CodeBuildProject:
     Type: AWS::CodeBuild::Project
     DependsOn:
       - CodeBuildServiceRole
