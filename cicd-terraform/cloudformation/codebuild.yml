@@ -22,8 +22,8 @@ Parameters:
   PipelineName:
     Type: String
     Description: The name of the pipeline. Generally follows GH repo name
-    AllowedPattern: "^aws-.*"
-    Default: aws-shared-examples/cicd-terraform
+    AllowedPattern: "^_.*"
+    Default: cicd-terraform
   FullRepositoryId:
     Type: String
     Description: The full name of the GitHub repository
