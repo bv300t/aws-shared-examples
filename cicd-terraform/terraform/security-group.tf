@@ -1,9 +1,9 @@
 resource "aws_security_group" "codebuildsg" {
   name = "${var.prefix}"
   tags {
-        Name = "${var.prefix}"
+        Name = "${var.prefix}SG"
   }
-  description = "${var.prefix} SG"
+  description = "${var.prefix} Security Group"
   egress {
     from_port   = 0
     to_port     = 65535 # All outbound traffic
@@ -21,5 +21,5 @@ resource "aws_security_group" "codebuildsg" {
 resource "aws_ssm_parameter" "ssmcodebuildsgid" {
   name  = "/codebuild/codebuildsgid"
   type  = "String"
-  value = aws_security_group.my_sg.id
+  value = aws_security_group.codebuildsg.id
 }
