@@ -3,7 +3,11 @@ version: 0.2
 phases:
   install:
     commands:
-      - sudo pip install boto3
+      - echo debug commands
+      - python --version
+      - pip --version
+      - echo install boto3 
+      - pip install boto3
       - echo "installing yum-utils"
       - sudo yum install -y yum-utils
       - echo "add terraform repo to yum repolist"
