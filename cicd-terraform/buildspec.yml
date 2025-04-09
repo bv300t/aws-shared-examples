@@ -10,7 +10,7 @@ phases:
       - echo install boto3 
       - pip install boto3
       - echo "installing yum-utils"
-      - yum install -y yum-utils
+      - yum install -y yum-utils 
       - echo "add terraform repo to yum repolist"
       - yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
       - echo "install terraform"
